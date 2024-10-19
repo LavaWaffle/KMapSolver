@@ -1,3 +1,11 @@
+def enumerate(iterable, start=0):
+    # Initialize the counter
+    count = start
+    # Loop through the iterable
+    for item in iterable:
+        yield count, item  # Yield the index and the item
+        count += 1  # Increment the counter
+
 def merge_minterms(minterm1: str, minterm2: str) -> str:
     """
     Merges two minterms by comparing each bit position.
@@ -122,7 +130,7 @@ def create_prime_implicant_chart(prime_implicants: list[str], minterms: list[str
         prime_implicant_chart[prime_implicants[i]] = []
     
     # For each prime implicant, check if it covers each midterm
-    for i in range(len(prime_implicant_chart.keys())):
+    for i in range(len(list(prime_implicant_chart.keys()))):
         prime_implicant = list(prime_implicant_chart.keys())[i]
 
         for j in range(len(minterms)):
@@ -155,7 +163,22 @@ def find_valid_combinations(coverage_dict):
     Returns:
         List of valid combinations (each combination is a list of prime implicants)
     """
-    from itertools import combinations
+    def combinations(iterable, r):
+        # Get the length of the iterable
+        n = len(iterable)
+        # Create a list to hold the combinations
+        result = []
+        
+        # Helper function to generate combinations
+        def combo(start, path):
+            if len(path) == r:
+                result.append(path)
+                return
+            for i in range(start, n):
+                combo(i + 1, path + [iterable[i]])
+        
+        combo(0, [])
+        return result
     
     # Get all possible implicants
     implicants = list(coverage_dict.keys())
@@ -267,14 +290,14 @@ def request_kmap_input(kmap_size: int) -> list[dict]:
     row_codes = gray_code_order(bits//2)
     col_codes = gray_code_order((bits+1)//2)
     
-    print(f"Enter values for {rows}x{cols} K-map\n1=True\n0=False\nX=don't care")
+    print("Enter values for " + str(rows) + "x" + str(cols) + " K-map\n1=True\n0=False\nX=don't care")
     
     # Collect input for each cell
     for row in row_codes:
         for col in col_codes:
             binary = row + col
             while True:
-                value = input(f"{binary}= ").upper()
+                value = input(str(binary) + "= ").upper()
                 if value in ['0', '1', '2', 'X']:
                     break
                 print("Invalid input. Please enter 0, 1, or X")
@@ -343,22 +366,30 @@ def print_kmap(minterms: list[dict]) -> None:
     # Print column headers
     print('   ', end='')
     for header in col_header:
-        print(f'  {header}', end='')
+        print('  ' + header, end='')
     print()
     
     # Print rows with headers
     for i in range(rows):
-        print(f' {row_header[i]} ', end='')
+        print(' ' + row_header[i] + ' ', end='')
         for j in range(cols):
-            print(f'  {kmap[i][j]} ', end='')
+            print('  ' + kmap[i][j] + ' ', end='')
         print()
+
+def format(value, fmt_spec):
+    if fmt_spec.startswith('0') and 'b' in fmt_spec:
+        zero_padding = int(fmt_spec[1:fmt_spec.index('b')])
+        # Manual binary conversion with zero padding
+        binary_str = bin(value)[2:]  # Convert to binary and remove '0b'
+        return '0' * (zero_padding - len(binary_str)) + binary_str
+    return str(value)
 
 def transform_minterms(minterms: list[dict]) -> list[dict]:
     # First, get the length of binary strings to determine total possible combinations
     binary_length = len(minterms[0]['binary'])
     
     # Create a set of all possible binary combinations
-    all_binary = {format(i, f'0{binary_length}b') for i in range(2 ** binary_length)}
+    all_binary = {format(i, '0' + str(binary_length) + 'b') for i in range(2 ** binary_length)}
     
     # Create sets for existing binaries
     existing_binaries = {term['binary'] for term in minterms}
@@ -399,13 +430,13 @@ def binary_groups_to_POS_expression(groups: list[str]) -> str:
             if bit == '1':
                 expression_parts.append(variables[i])
             elif bit == '0':
-                expression_parts.append(f"{variables[i]}'")
+                expression_parts.append(str(variables[i]) + "'")
             # Skip '-' bits
         
         return '+'.join(expression_parts)
     
     # Convert each group to expression and wrap in parentheses
-    group_expressions = [f"({term_to_expression(group)})" for group in groups]
+    group_expressions = ["(" + str(term_to_expression(group)) + ")" for group in groups]
     return ''.join(group_expressions)
 
 def binary_groups_to_SOP_simplified_expression(groups: list[str]) -> str:
@@ -417,7 +448,7 @@ def binary_groups_to_SOP_simplified_expression(groups: list[str]) -> str:
             if bit == '1':
                 expression_parts.append(variables[i])
             elif bit == '0':
-                expression_parts.append(f"{variables[i]}'")
+                expression_parts.append(str(variables[i]) + "'")
             # Skip '-' bits
         
         # Join without '+' to make product terms
