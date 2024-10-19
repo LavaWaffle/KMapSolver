@@ -215,46 +215,49 @@ def find_valid_combinations(coverage_dict):
     
     return valid_solutions
 
-minterms = [
-    {
-        'binary': "0100",
-        'required': True,
-    },
-    {
-        'binary': "1000",
-        'required': True,
-    },
-    {
-        'binary': "1001",
-        'required': False,
-    },
-    {
-        'binary': "1010",
-        'required': True,
-    },
-    {
-        'binary': "1100",
-        'required': True,
-    },
-    {
-        'binary': "1011",
-        'required': True,
-    },
-    {
-        'binary': "1110",
-        'required': False,
-    },
-    {
-        'binary': "1111",
-        'required': True
-    }
-]
+# minterms = [
+#     {
+#         'binary': "0100",
+#         'required': True,
+#     },
+#     {
+#         'binary': "1000",
+#         'required': True,
+#     },
+#     {
+#         'binary': "1001",
+#         'required': False,
+#     },
+#     {
+#         'binary': "1010",
+#         'required': True,
+#     },
+#     {
+#         'binary': "1100",
+#         'required': True,
+#     },
+#     {
+#         'binary': "1011",
+#         'required': True,
+#     },
+#     {
+#         'binary': "1110",
+#         'required': False,
+#     },
+#     {
+#         'binary': "1111",
+#         'required': True
+#     }
+# ]
 
 def request_kmap_size() -> int:
     return int(input("Please enter kmap size \n1=2x2\n2=2x4\n3=4x4\n"))
 
 def request_analysis_type() -> int:
     return int(input("Please enter analysis type \n1=SOP\n2=POS\n"))
+
+def request_input_type() -> int:
+    return int(input("Please enter input type \n1=kmap\n2=binary\n"))
 
 def request_kmap_input(kmap_size: int) -> list[dict]:
     minterms = []
@@ -309,6 +312,48 @@ def request_kmap_input(kmap_size: int) -> list[dict]:
                 })
     
     return minterms
+
+def to_binary_with_bits(number, bits):
+    # Convert to binary and remove the '0b' prefix
+    binary_str = bin(number)[2:]
+    # Pad with zeros on the left to match the specified number of bits
+    padded_binary = '0' * (bits - len(binary_str)) + binary_str
+    # Truncate if the number is too large for the specified bits
+    return padded_binary[-bits:]
+
+def request_binary_input(kmap_size: int) -> list[dict]:
+    minterms = []
+
+    # Define dimensions based on kmap_size
+    if kmap_size == 1:  # 2x2
+        size = 4
+        bits = 2
+    elif kmap_size == 2:  # 2x4
+        size = 8
+        bits = 3
+    elif kmap_size == 3:  # 4x4
+        size = 16
+        bits = 4
+    else:
+        raise ValueError("Invalid kmap size. Must be 1 (2x2), 2 (2x4), or 3 (4x4)")
+    
+
+    # Request all binary combs in norm order
+    for i in range(size):
+        binary = to_binary_with_bits(i, bits)
+        while True:
+            value = input(str(binary) + "= ").upper()
+            if value in ['0', '1', '2', 'X']:
+                break
+            print("Invalid input. Please enter 0, 1, or X")
+        
+        if value in ['1', '2', 'X']:
+            minterms.append({
+                'binary': binary,
+                'required': True if value == '1' else False
+            })
+    return minterms
+
 
 def print_kmap(minterms: list[dict]) -> None:
     # Determine kmap size based on binary length
@@ -462,7 +507,11 @@ def binary_groups_to_SOP_simplified_expression(groups: list[str]) -> str:
 
 kmap_size = request_kmap_size()
 analysis_type = request_analysis_type()
-minterms = request_kmap_input(kmap_size)
+input_type = request_input_type()
+if input_type == 1:
+    minterms = request_kmap_input(kmap_size)
+else:
+    minterms = request_binary_input(kmap_size)
 # print(minterms)
 print("Inputted KMAP!")
 print_kmap(minterms)
