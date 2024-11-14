@@ -2,15 +2,18 @@ class LC3Simulator:
     def __init__(self):
         # Initialize registers (R0 to R7) and special registers (PC, CC)
         self.registers = [0] * 8  # 8 general-purpose registers
-        self.registers[0] = 0xC1E0
-        self.registers[1] = 0xD9B0
-        self.registers[2] = 0xC338
-        self.registers[3] = 0x7B13
-        # self.registers[5] = 0x3001
-        # self.registers[4] = 0x3007
+        self.registers[0] = 0x0006
+        self.registers[1] = 0x000B
+        self.registers[2] = 0x000D
+        self.registers[3] = 0x0002
+        self.registers[4] = 0x0001
+        self.registers[5] = 0x0008
+        self.registers[6] = 0x0004
+        self.registers[7] = 0x0002
+
         self.memory = [0] * 65536  # 64K memory (16-bit words)
-        self.PC = 0  # Program Counter
-        self.CC = 'Z'  # Condition Code (Z, N, P)
+        self.PC = 0x3000
+        self.CC = 'Z'  # Condition Code (N, Z, P)
         self.running = True
 
     def load_program(self, program):
@@ -33,7 +36,7 @@ class LC3Simulator:
     def decode_execute(self, instruction):
         """ Decode and execute the instruction """
         opcode = (instruction >> 12) & 0xF  # Extract the opcode (4 MSB)
-        
+        print(f"opcode: {opcode:04X}")
         if opcode == 0x1:  # ADD
             self.ADD(instruction)
         elif opcode == 0x5:  # AND
@@ -46,7 +49,7 @@ class LC3Simulator:
             self.ST(instruction)
         elif opcode == 0x6:  # LDR
             self.LDR(instruction)
-        elif opcode == 0x7:  # STR
+        elif opcode == 0x7:  # ST
             self.STR(instruction)
         elif opcode == 0xE:  # LEA
             self.LEA(instruction)
@@ -62,6 +65,8 @@ class LC3Simulator:
             self.running = False
         elif opcode == 0xA:
             self.LDI(instruction)
+        elif opcode == 0xB:
+            self.STI(instruction)
         else:
             print(f"Unknown instruction {instruction:04X}")
             self.running = False
@@ -71,15 +76,18 @@ class LC3Simulator:
         dest = (instruction >> 9) & 0x7  # Destination register
         src1 = (instruction >> 6) & 0x7  # First source register
         imm_flag = (instruction >> 5) & 0x1  # Immediate mode flag
-        
+
+        print(f"ADD {self.registers[dest]} <- {self.registers[src1]} + ", end="")
         if imm_flag == 1:  # Immediate mode
             imm5 = instruction & 0x1F  # 5-bit immediate value
             if imm5 & 0x10:  # Sign-extend if negative
                 imm5 -= 0x20
             self.registers[dest] = self.registers[src1] + imm5
+            print(f"{imm5:d}")
         else:  # Register mode
             src2 = instruction & 0x7  # Second source register
             self.registers[dest] = self.registers[src1] + self.registers[src2]
+            print(f"{self.registers[src2]}")
         
         self.update_CC(self.registers[dest])
 
@@ -89,22 +97,28 @@ class LC3Simulator:
         src1 = (instruction >> 6) & 0x7  # First source register
         imm_flag = (instruction >> 5) & 0x1  # Immediate mode flag
         
+        print(f"AND {self.registers[dest]} <- {self.registers[src1]} & ", end="")
+
         if imm_flag == 1:  # Immediate mode
             imm5 = instruction & 0x1F
             if imm5 & 0x10:  # Sign-extend if negative
                 imm5 -= 0x20
             self.registers[dest] = self.registers[src1] & imm5
+            print(f"{imm5:d}")
         else:  # Register mode
             src2 = instruction & 0x7  # Second source register
             self.registers[dest] = self.registers[src1] & self.registers[src2]
-        
+            print(f"{self.registers[src2]}")
         self.update_CC(self.registers[dest])
 
     def NOT(self, instruction):
+        print("HI")
         """ Handle the NOT instruction """
         dest = (instruction >> 9) & 0x7  # Destination register
         src = (instruction >> 6) & 0x7  # Source register
+        print(f"NOT {self.registers[src]:04X}")
         self.registers[dest] = ~self.registers[src] & 0xFFFF  # Ensure 16-bit result
+        print(f"NOT {self.registers[dest]:04X}")
         self.update_CC(self.registers[dest])
 
     def LD(self, instruction):
@@ -161,9 +175,27 @@ class LC3Simulator:
         """ Handle the LDI (Load Immediate) instruction """
         dest = (instruction >> 9) & 0x7  # Destination register
         offset = instruction & 0x1FF  # 9-bit signed offset
+        if offset & 0x100:  # Sign-extend
+            offset -= 0x200
+        temp_address = self.PC + offset
+        final_address = self.memory[temp_address]
+        self.registers[dest] = self.memory[final_address]
+        self.update_CC(self.registers[dest])
 
+    def STI(self, instruction):
+        """ Handle the STI (Store Immediate) instruction """
+        source = (instruction >> 9) & 0x7  # Destination register
+        offset = instruction & 0x1FF  # 9-bit signed offset
+
+        if offset & 0x100:  # Sign-extend
+            offset -= 0x200
+
+        temp_address = self.PC + offset
+        final_address = self.memory[temp_address]
+        self.memory[final_address] = self.registers[source]
 
     def BR(self, instruction):
+        print("BR")
         """ Handle the BR (Branch) instruction """
         cond = (instruction >> 9) & 0x7  # Condition codes
         offset = instruction & 0x1FF  # 9-bit signed offset
@@ -212,12 +244,23 @@ class LC3Simulator:
         else:
             self.CC = 'P'  # Positive
 
-    def run(self):
+    def run(self, program_length):
         """ Run the LC-3 program """
+        skip = "Y" == input("Press Y to skip to the end of the program: ")
+        program_addr = 0
         while self.running:
             instruction = self.fetch()
-            print(f"pc: {self.PC:04X}, instruction: {instruction:016b}")
+            print(f"addr: {self.PC - 1:04X} pc: {self.PC:04X}\ninstruction: {instruction:04X}")
+            if skip == False:
+                ans = input("E -> Cont, S -> Stop: ")
+                if "S" == ans:
+                    self.running = False
+                    break
+            if program_addr >= program_length - 1:
+                print("No more instructions. Terminating")
+                break
             self.decode_execute(instruction)
+            program_addr += 1
 
         # When halted, show state of registers
         self.print_registers()
@@ -242,16 +285,19 @@ program = [
     # 0b0101_111_001_1_11111, # AND R7 R1 xFFFF
     # 0b1001_110_010_111111, # NOT R6 R2
     # 0b1110_011_111111111, # LEA R3 -1
-    
-    0xF025,  # HALT
+    0x1400,
+    0x0C01,
+    0x5201, 
+    0x10BF
+    # 0xF025,  # HALT
 ]
 
 simulator = LC3Simulator()
 simulator.load_program(program)
-simulator.run()
+simulator.run(len(program))
 
 start = int(program[0])
-for i in range(1, len(program)+1):
+for i in range(1, len(program)+2):
     mem = simulator.memory[start + i - 1]
     print(f"0x{start+i-1:04X}: {mem:04X}")
 
