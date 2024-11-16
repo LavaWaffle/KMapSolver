@@ -270,8 +270,8 @@ class LC3Simulator:
 
     def run(self):
         """ Run the LC-3 program """
-        skip = "2" == input("Enter...\n[1] to go step by step\n[2] to skip steps\n")
-        print("Enter [2] to stop execution at any time")
+        skip = "2" == input("Enter [2] to run all\n")
+        # print("Enter [2] to stop execution at any time")
         
         program_addr = 0
         
@@ -312,8 +312,8 @@ class LC3Simulator:
                 self.print_registers()
             elif "2" == inp: 
                 self.print_memory(self.ADDR)
-            elif (inp.startswith("i")):
-                inp = inp.replace("i", "")
+            elif (inp.startswith(".")):
+                inp = inp.replace(".", "")
                 if len(inp) == 16:
                     self.print_memory(int(inp, 2))
                 elif len(inp) == 4:
@@ -327,7 +327,7 @@ class LC3Simulator:
             else:
                 break
 
-    def print_registers(self):
+    def print_registers(self, skip=False):
         """ Print the state of all registers """
         print("Registers:")
         for i in range(0,8,2):
@@ -335,7 +335,8 @@ class LC3Simulator:
             register_two = self.registers[i+1]
             print("R{}:{:04X} R{}:{:04X}".format(i, register_one, i+1, register_two))
         # print(f"PC: {self.PC:04X}  CC: {self.CC}")
-        print("PC:{:04X}  CC:{}".format(self.PC, self.CC))
+        if not skip:
+            print("PC:{:04X}  CC:{}".format(self.PC, self.CC))
         # print("\n")
 
     def print_memory(self, addr, length=4):
@@ -383,7 +384,9 @@ def request_initial_state():
             addr += 1
         elif len(inp) == 4:
             simulator.memory[addr] = int(inp, 16)
-            print("0x{:016b}".format(int(inp, 16)))
+            str = "{:016b}".format(int(inp, 16))
+            str = "_".join(str[i:i+4] for i in range(0, len(str), 4))
+            print(str)
             addr += 1
         elif len(inp) == 20:
             new_addr = inp[0:4]
@@ -397,7 +400,9 @@ def request_initial_state():
             new_val = inp[4:8]
             addr = int(new_addr, 16)
             simulator.memory[addr] = int(new_val, 16)
-            print("0x{:016b}".format(int(new_val, 16)))
+            str = "{:016b}".format(int(new_val, 16))
+            str = "_".join(str[i:i+4] for i in range(0, len(str), 4))
+            print(str)
             addr += 1
         else:
             continue
@@ -417,9 +422,9 @@ def request_initial_state():
             register = inp[0]
             value = inp[1:5]
             simulator.registers[int(register)] = int(value, 16)
-            print("R{} <- 0x{:016b}".format(int(register), int(value, 16)))
+            print("R{} <- 0x{:04X}".format(int(register), int(value, 16)))
         
-    simulator.print_registers()
+    simulator.debug()
     
 # if __name__ == "__main__":
 request_initial_state()
